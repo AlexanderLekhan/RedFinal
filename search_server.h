@@ -9,11 +9,24 @@
 #include <string>
 using namespace std;
 
+class DocHits : public map<size_t, size_t>
+{
+public:
+    DocHits& operator+=(const DocHits& other)
+    {
+        for (auto& [doc, hits] : other)
+        {
+            (*this)[doc] += hits;
+        }
+        return *this;
+    }
+};
+
 class InvertedIndex
 {
 public:
     void Add(const string& document);
-    list<size_t> Lookup(const string& word) const;
+    DocHits Lookup(const string& word) const;
 
     const string& GetDocument(size_t id) const
     {
@@ -21,7 +34,7 @@ public:
     }
 
 private:
-    map<string, list<size_t>> index;
+    map<string, DocHits> index;
     vector<string> docs;
 };
 

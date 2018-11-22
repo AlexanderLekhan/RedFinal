@@ -35,14 +35,11 @@ void SearchServer::AddQueriesStream(istream& query_input,
     for (string current_query; getline(query_input, current_query); )
     {
         const auto words = SplitIntoWords(current_query);
-        map<size_t, size_t> docid_count;
+        DocHits docid_count;
 
         for (const auto& word : words)
         {
-            for (const size_t docid : index.Lookup(word))
-            {
-                docid_count[docid]++;
-            }
+            docid_count += index.Lookup(word);
         }
 
         vector<pair<size_t, size_t>> search_results(
@@ -78,11 +75,11 @@ void InvertedIndex::Add(const string& document)
 
     for (const auto& word : SplitIntoWords(document))
     {
-        index[word].push_back(docid);
+        ++index[word][docid];
     }
 }
 
-list<size_t> InvertedIndex::Lookup(const string& word) const
+DocHits InvertedIndex::Lookup(const string& word) const
 {
     if (auto it = index.find(word); it != index.end())
     {
