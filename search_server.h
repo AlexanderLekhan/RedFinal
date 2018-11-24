@@ -44,10 +44,13 @@ public:
     SearchServer() = default;
     explicit SearchServer(istream& document_input);
     void UpdateDocumentBase(istream& document_input);
-    void AddQueriesStream(istream& query_input, ostream& search_results_output);
+    void AddQueriesStream(istream& query_input, ostream& search_results_output) const;
 
     const size_t MAX_OUTPUT = 5;
 
 private:
+    void PrintResult(const string& query,
+                     vector<pair<size_t, size_t> >& result,
+                     ostream& search_results_output) const;
     InvertedIndex index;
 };
