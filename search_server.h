@@ -38,6 +38,8 @@ private:
     vector<string> docs;
 };
 
+using SearchResult = vector < pair < size_t, size_t > >;
+
 class SearchServer
 {
 public:
@@ -50,7 +52,7 @@ public:
 
 private:
     void PrintResult(const string& query,
-                     vector<pair<size_t, size_t> >& result,
+                     const SearchResult& result,
                      ostream& search_results_output) const;
     InvertedIndex index;
 };

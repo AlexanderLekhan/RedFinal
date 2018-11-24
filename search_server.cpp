@@ -63,28 +63,64 @@ vector<pair<size_t, size_t> > process_query(const string& query,
     return search_results;
 }
 
+struct ResultBatch
+{
+    ResultBatch(vector<string> queriesBatch) :
+        queries(queriesBatch)
+    {
+        results.reserve(queries.size());
+    }
+    vector<string> queries;
+    vector<SearchResult> results;
+};
+
+ResultBatch process_queries_batch(vector<string> queries,
+                                  const InvertedIndex& index,
+                                  const size_t MAX_OUTPUT)
+{
+    ResultBatch resultBatch(move(queries));
+    for (const string& q : resultBatch.queries)
+    {
+        resultBatch.results.push_back(process_query(q, index, MAX_OUTPUT));
+    }
+    return resultBatch;
+}
+
 void SearchServer::AddQueriesStream(istream& query_input,
                                     ostream& search_results_output) const
 {
-    vector<future<vector<pair<size_t, size_t> > > > futures;
-    list<string> queries;
+    const size_t max_batch_size = 5000;
+    vector<string> queries;
+    queries.reserve(max_batch_size);
+    vector < future < ResultBatch > > futures;
+    bool ok = true;
 
-    for (string current_query; getline(query_input, current_query); )
+    while (ok)
     {
+        string current_query;
+        ok = getline(query_input, current_query).good();
         queries.push_back(move(current_query));
-        futures.push_back(async(process_query, ref(queries.back()), ref(index), MAX_OUTPUT));
+
+        if (!(ok && queries.size() < max_batch_size))
+        {
+            futures.push_back(async(process_queries_batch, move(queries), ref(index), MAX_OUTPUT));
+        }
     }
-    size_t i = 0;
-    for (auto& q : queries)
+
+    for (future<ResultBatch>& f : futures)
     {
-        vector<pair<size_t, size_t> > current_result(futures[i].get());
-        PrintResult(q, current_result, search_results_output);
-        ++i;
+        const ResultBatch& resultBatch(f.get());
+        size_t i = 0;
+
+        for (const SearchResult& r : resultBatch.results)
+        {
+            PrintResult(resultBatch.queries[i++], r, search_results_output);
+        }
     }
 }
 
 void SearchServer::PrintResult(const string& query,
-                               vector<pair<size_t, size_t> >& result,
+                               const SearchResult& result,
                                ostream &search_results_output) const
 {
     search_results_output << query << ':';
