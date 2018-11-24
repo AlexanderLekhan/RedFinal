@@ -42,23 +42,28 @@ void SearchServer::AddQueriesStream(istream& query_input,
             docid_count += index.Lookup(word);
         }
 
-        vector<pair<size_t, size_t>> search_results(
-        docid_count.begin(), docid_count.end());
+        vector<pair<size_t, size_t>> search_results;
 
-        sort(begin(search_results),
-             end(search_results),
-             [](pair<size_t, size_t> lhs, pair<size_t, size_t> rhs)
-             {
-                 int64_t lhs_docid = lhs.first;
-                 auto lhs_hit_count = lhs.second;
-                 int64_t rhs_docid = rhs.first;
-                 auto rhs_hit_count = rhs.second;
-                 return make_pair(lhs_hit_count, -lhs_docid) > make_pair(rhs_hit_count, -rhs_docid);
-             });
+        for (size_t i = 0; docid_count.size() > 0 && i < MAX_OUTPUT; ++i)
+        {
+            auto curMax =
+            max_element(docid_count.begin(), docid_count.end(),
+                        [](pair<size_t, size_t> lhs, pair<size_t, size_t> rhs)
+                        {
+                            int64_t lhs_docid = lhs.first;
+                            auto lhs_hit_count = lhs.second;
+                            int64_t rhs_docid = rhs.first;
+                            auto rhs_hit_count = rhs.second;
+                            return make_pair(lhs_hit_count, -lhs_docid)
+                                 < make_pair(rhs_hit_count, -rhs_docid);
+                        });
+            search_results.push_back(*curMax);
+            docid_count.erase(curMax);
+        }
 
         search_results_output << current_query << ':';
 
-        for (auto [docid, hitcount] : Head(search_results, 5))
+        for (auto [docid, hitcount] : search_results)
         {
             search_results_output << " {"
             << "docid: " << docid << ", "

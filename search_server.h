@@ -46,6 +46,8 @@ public:
     void UpdateDocumentBase(istream& document_input);
     void AddQueriesStream(istream& query_input, ostream& search_results_output);
 
+    const size_t MAX_OUTPUT = 5;
+
 private:
     InvertedIndex index;
 };
