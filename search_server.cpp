@@ -52,9 +52,12 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
     const auto words = SplitIntoWords(query);
     DocHits docid_count;
 
-    for (const auto& word : words)
     {
-        docid_count += index.Lookup(word);
+        DUR_ACCUM("Lookup");
+        for (const auto& word : words)
+        {
+            docid_count += index.Lookup(word);
+        }
     }
 
     SearchResult search_result;
@@ -94,6 +97,7 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
 void SearchServer::AddQueriesStreamSingleThread(istream& query_input,
                                                 ostream& search_results_output) const
 {
+    DUR_ACCUM();
     for (string current_query; getline(query_input, current_query); )
     {
         PrintResult(current_query, ProcessQuery(current_query), search_results_output);
@@ -191,4 +195,14 @@ const DocHits& InvertedIndex::Lookup(const string& word) const
     DUR_ACCUM();
     auto it = index.find(word);
     return it != index.end()? it->second : DOC_HITS_EMPTY;
+}
+
+DocHits& DocHits::operator+=(const DocHits& other)
+{
+    DUR_ACCUM();
+    for (auto& [doc, hits] : other)
+    {
+        (*this)[doc] += hits;
+    }
+    return *this;
 }

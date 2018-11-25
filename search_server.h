@@ -6,20 +6,14 @@
 #include <list>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <string>
 using namespace std;
 
-class DocHits : public map<size_t, size_t>
+class DocHits : public unordered_map<size_t, size_t>
 {
 public:
-    DocHits& operator+=(const DocHits& other)
-    {
-        for (auto& [doc, hits] : other)
-        {
-            (*this)[doc] += hits;
-        }
-        return *this;
-    }
+    DocHits& operator+=(const DocHits& other);
 };
 
 const DocHits DOC_HITS_EMPTY = {};
@@ -36,7 +30,7 @@ public:
     }
 
 private:
-    map<string, DocHits> index;
+    unordered_map<string, DocHits> index;
     vector<string> docs;
 };
 
