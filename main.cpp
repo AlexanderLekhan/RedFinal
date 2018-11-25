@@ -1,6 +1,7 @@
 #include "search_server.h"
 #include "parse.h"
 #include "test_runner.h"
+#include "profile.h"
 
 #include <algorithm>
 #include <iterator>
@@ -200,6 +201,51 @@ void TestBasicSearch() {
   TestFunctionality(docs, queries, expected);
 }
 
+void TestSpeed()
+{
+    {
+        ifstream in("D:\\Learning\\QT\\Red\\RedFinal\\Test\\docs.txt");
+        ifstream q("D:\\Learning\\QT\\Red\\RedFinal\\Test\\queries.txt");
+        ofstream outmulti("D:\\Learning\\QT\\Red\\RedFinal\\Test\\out.txt", ios_base::trunc);
+
+#ifdef MULTI_THREAD_VERSION
+        LOG_DURATION("Total multi-thread");
+#else
+        LOG_DURATION("Total single-thread");
+#endif
+
+        SearchServer s;
+        {
+            LOG_DURATION("UpdateDocumentBase");
+            s.UpdateDocumentBase(in);
+        }
+        {
+            LOG_DURATION("AddQueriesStream");
+            s.AddQueriesStream(q, outmulti);
+        }
+    }
+#if 0
+    {
+        ifstream in("D:\\Learning\\QT\\Red\\RedFinal\\Test\\docs.txt");
+        ifstream q("D:\\Learning\\QT\\Red\\RedFinal\\Test\\queries.txt");
+        ofstream outsingle("D:\\Learning\\QT\\Red\\RedFinal\\Test\\out_single.txt", ios_base::trunc);
+
+        LOG_DURATION("Total single-thread");
+
+        SearchServer s;
+        {
+            LOG_DURATION("UpdateDocumentBase");
+            s.UpdateDocumentBase(in);
+        }
+        {
+            LOG_DURATION("AddQueriesStreamSingleThread");
+            s.AddQueriesStreamSingleThread(q, outsingle);
+        }
+    }
+#endif
+    DUR_PRINT_ALL;
+}
+
 int main() {
   TestRunner tr;
   RUN_TEST(tr, TestSerpFormat);
@@ -207,4 +253,5 @@ int main() {
   RUN_TEST(tr, TestHitcount);
   RUN_TEST(tr, TestRanking);
   RUN_TEST(tr, TestBasicSearch);
+  RUN_TEST(tr, TestSpeed);
 }

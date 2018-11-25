@@ -33,13 +33,6 @@ private:
     std::chrono::steady_clock::time_point start;
 };
 
-//---------------------------------------------------------------------------//
-#define UNIQ_ID_IMPL(lineno) _a_local_var_##lineno
-#define UNIQ_ID(lineno) UNIQ_ID_IMPL(lineno)
-
-#define LOG_DURATION(message) \
-  LogDuration UNIQ_ID(__LINE__){message};
-
 //===========================================================================//
 // Simple profiler
 //---------------------------------------------------------------------------//
@@ -103,7 +96,29 @@ private:
 };
 
 //---------------------------------------------------------------------------//
+#define USE_PROFILING
+#undef USE_PROFILING
+//---------------------------------------------------------------------------//
+#define UNIQ_ID_IMPL(lineno) _a_local_var_##lineno
+#define UNIQ_ID(lineno) UNIQ_ID_IMPL(lineno)
+
+#ifdef USE_PROFILING
+
+#define LOG_DURATION(message) \
+  LogDuration UNIQ_ID(__LINE__){message};
+
 #define DUR_ACCUM(message) \
   DurationAccumulator UNIQ_ID(__LINE__){__func__, message};
+
+#define DUR_PRINT_ALL \
+  Profiler::printAllDurations(std::cerr);
+
+#else
+
+#define LOG_DURATION(message)
+#define DUR_ACCUM(message)
+#define DUR_PRINT_ALL
+
+#endif
 
 #endif // PROFILE_H

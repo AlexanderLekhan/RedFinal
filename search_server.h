@@ -22,11 +22,13 @@ public:
     }
 };
 
+const DocHits DOC_HITS_EMPTY = {};
+
 class InvertedIndex
 {
 public:
     void Add(const string& document);
-    DocHits Lookup(const string& word) const;
+    const DocHits& Lookup(const string& word) const;
 
     const string& GetDocument(size_t id) const
     {
@@ -46,7 +48,14 @@ public:
     SearchServer() = default;
     explicit SearchServer(istream& document_input);
     void UpdateDocumentBase(istream& document_input);
-    void AddQueriesStream(istream& query_input, ostream& search_results_output) const;
+    void AddQueriesStream(istream& query_input,
+                          ostream& search_results_output) const;
+
+    SearchResult ProcessQuery(const string& query) const;
+    void AddQueriesStreamSingleThread(istream& query_input,
+                                      ostream& search_results_output) const;
+    void AddQueriesStreamMultiThread(istream& query_input,
+                                     ostream& search_results_output) const;
 
     const size_t MAX_OUTPUT = 5;
 
