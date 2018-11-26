@@ -11,6 +11,8 @@
 #define MULTI_THREAD_VERSION
 #undef MULTI_THREAD_VERSION
 
+using namespace std;
+
 vector<string> SplitIntoWords(const string& line)
 {
     istringstream words_input(line);
@@ -53,10 +55,10 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
     DocHits docid_count;
 
     {
-        DUR_ACCUM("Lookup");
+        DUR_ACCUM("LookupAndSum");
         for (const auto& word : words)
         {
-            docid_count += index.Lookup(word);
+            index.LookupAndSum(word, docid_count);
         }
     }
 
@@ -148,7 +150,7 @@ void SearchServer::AddQueriesStreamMultiThread(istream& query_input,
     const size_t max_batch_size = 1000;
     vector<string> queries;
     queries.reserve(max_batch_size);
-    vector < future < ResultBatch > > futures;
+    vector<future<ResultBatch>> futures;
     bool ok = true;
 
     while (ok)
@@ -195,6 +197,15 @@ const DocHits& InvertedIndex::Lookup(const string& word) const
     DUR_ACCUM();
     auto it = index.find(word);
     return it != index.end()? it->second : DOC_HITS_EMPTY;
+}
+
+void InvertedIndex::LookupAndSum(const string& word, DocHits& docid_count) const
+{
+    DUR_ACCUM();
+    auto it = index.find(word);
+
+    if (it != index.end())
+        docid_count += it->second;
 }
 
 DocHits& DocHits::operator+=(const DocHits& other)

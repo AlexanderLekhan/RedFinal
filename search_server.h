@@ -23,6 +23,7 @@ class InvertedIndex
 public:
     void Add(const string& document);
     const DocHits& Lookup(const string& word) const;
+    void LookupAndSum(const string& word, DocHits& docid_count) const;
 
     const string& GetDocument(size_t id) const
     {
@@ -30,11 +31,11 @@ public:
     }
 
 private:
-    unordered_map<string, DocHits> index;
+    map<string, DocHits> index;
     vector<string> docs;
 };
 
-using SearchResult = vector < pair < size_t, size_t > >;
+using SearchResult = vector<pair<size_t, size_t>>;
 
 class SearchServer
 {

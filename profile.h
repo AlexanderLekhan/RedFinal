@@ -5,7 +5,7 @@
 #include <chrono>
 #include <iostream>
 #include <string>
-#include <unordered_map>
+#include <map>
 
 //===========================================================================//
 // Simple duration logger
@@ -64,7 +64,7 @@ public:
         }
     }
 private:
-    static std::unordered_map<std::string, std::chrono::steady_clock::duration> m_blockDuration;
+    static std::map<std::string, std::chrono::steady_clock::duration> m_blockDuration;
 };
 
 //===========================================================================//
@@ -97,7 +97,7 @@ private:
 
 //---------------------------------------------------------------------------//
 #define USE_PROFILING
-#undef USE_PROFILING
+//#undef USE_PROFILING
 //---------------------------------------------------------------------------//
 #define UNIQ_ID_IMPL(lineno) _a_local_var_##lineno
 #define UNIQ_ID(lineno) UNIQ_ID_IMPL(lineno)
