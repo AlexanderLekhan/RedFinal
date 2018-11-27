@@ -185,10 +185,15 @@ void InvertedIndex::Add(const string& document)
 {
     docs.push_back(document);
     const size_t docid = docs.size() - 1;
+    map<string, vector<size_t>> wordHits;
 
     for (const auto& word : SplitIntoWords(document))
     {
-        index[word].push_back(docid);
+        wordHits[word].push_back(docid);
+    }
+    for (auto& [word, hits] : wordHits)
+    {
+        index[word].push_back(DocHits(hits));
     }
 }
 
@@ -201,12 +206,29 @@ void InvertedIndex::LookupAndSum(const string& word, DocHits& docid_count) const
         docid_count += it->second;
 }
 
-DocHits &DocHits::operator+=(const vector<size_t>& singleDocHits)
+DocHits::DocHits(const vector<size_t> &singleDocHits)
+{
+    sort(singleDocHits.begin(), singleDocHits.end());
+    for (size_t curDoc : singleDocHits)
+    {
+        if (size() == 0 || back().first != curDoc)
+        {
+            push_back({curDoc, 1});
+        }
+        else
+        {
+            ++back().second;
+        }
+    }
+}
+
+DocHits &DocHits::operator+=(const DocHits& other)
 {
     DUR_ACCUM();
-    for (size_t doc : singleDocHits)
+    for (auto& [doc, hits] : other)
     {
-        ++((*this)[doc]);
+        binary_search
+        (*this)[doc] += hits;
     }
     return *this;
 }

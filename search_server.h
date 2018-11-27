@@ -5,15 +5,15 @@
 #include <set>
 #include <vector>
 #include <map>
-#include <unordered_map>
 #include <string>
 
 using namespace std;
 
-class DocHits : public unordered_map<size_t, size_t>
+class DocHits : public vector<pair<size_t, size_t>>
 {
 public:
-    DocHits& operator+=(const vector<size_t>& singleDocHits);
+    DocHits(const vector<size_t>& singleDocHits);
+    DocHits& operator+=(const DocHits& other);
 };
 
 class InvertedIndex
@@ -28,7 +28,7 @@ public:
     }
 
 private:
-    map<string, vector<size_t>> index;
+    map<string, DocHits> index;
     vector<string> docs;
 };
 
