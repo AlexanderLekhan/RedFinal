@@ -188,15 +188,8 @@ void InvertedIndex::Add(const string& document)
 
     for (const auto& word : SplitIntoWords(document))
     {
-        ++index[word][docid];
+        index[word].push_back(docid);
     }
-}
-
-const DocHits& InvertedIndex::Lookup(const string& word) const
-{
-    DUR_ACCUM();
-    auto it = index.find(word);
-    return it != index.end()? it->second : DOC_HITS_EMPTY;
 }
 
 void InvertedIndex::LookupAndSum(const string& word, DocHits& docid_count) const
@@ -208,12 +201,12 @@ void InvertedIndex::LookupAndSum(const string& word, DocHits& docid_count) const
         docid_count += it->second;
 }
 
-DocHits& DocHits::operator+=(const DocHits& other)
+DocHits &DocHits::operator+=(const vector<size_t>& singleDocHits)
 {
     DUR_ACCUM();
-    for (auto& [doc, hits] : other)
+    for (size_t doc : singleDocHits)
     {
-        (*this)[doc] += hits;
+        ++((*this)[doc]);
     }
     return *this;
 }

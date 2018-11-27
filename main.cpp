@@ -204,7 +204,7 @@ void TestBasicSearch() {
 void TestSpeed()
 {
     {
-        ifstream in("D:\\Learning\\QT\\Red\\RedFinal\\Test\\docs.txt");
+        ifstream in("D:\\Learning\\QT\\Red\\RedFinal\\Test\\docs2.txt");
         ifstream q("D:\\Learning\\QT\\Red\\RedFinal\\Test\\queries.txt");
         ofstream outmulti("D:\\Learning\\QT\\Red\\RedFinal\\Test\\out.txt", ios_base::trunc);
 

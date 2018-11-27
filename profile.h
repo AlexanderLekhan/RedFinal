@@ -97,7 +97,7 @@ private:
 
 //---------------------------------------------------------------------------//
 #define USE_PROFILING
-//#undef USE_PROFILING
+#undef USE_PROFILING
 //---------------------------------------------------------------------------//
 #define UNIQ_ID_IMPL(lineno) _a_local_var_##lineno
 #define UNIQ_ID(lineno) UNIQ_ID_IMPL(lineno)

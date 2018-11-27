@@ -3,26 +3,23 @@
 #include <istream>
 #include <ostream>
 #include <set>
-#include <list>
 #include <vector>
 #include <map>
 #include <unordered_map>
 #include <string>
+
 using namespace std;
 
 class DocHits : public unordered_map<size_t, size_t>
 {
 public:
-    DocHits& operator+=(const DocHits& other);
+    DocHits& operator+=(const vector<size_t>& singleDocHits);
 };
-
-const DocHits DOC_HITS_EMPTY = {};
 
 class InvertedIndex
 {
 public:
     void Add(const string& document);
-    const DocHits& Lookup(const string& word) const;
     void LookupAndSum(const string& word, DocHits& docid_count) const;
 
     const string& GetDocument(size_t id) const
@@ -31,7 +28,7 @@ public:
     }
 
 private:
-    map<string, DocHits> index;
+    map<string, vector<size_t>> index;
     vector<string> docs;
 };
 
