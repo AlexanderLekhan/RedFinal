@@ -53,7 +53,7 @@ void SearchServer::AddQueriesStream(istream& query_input,
 SearchResult SearchServer::ProcessQuery(const string& query) const
 {
     const auto words = SplitIntoWords(query);
-    map<size_t, size_t> docid_count;
+    unordered_map<size_t, size_t> docid_count;
 
     {
         DUR_ACCUM("LookupAndSum");
@@ -69,7 +69,7 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
         DUR_ACCUM("Top5")
         for (size_t i = 0; docid_count.size() > 0 && i < MAX_OUTPUT; ++i)
         {
-            map<size_t, size_t>::iterator curMax;
+            unordered_map<size_t, size_t>::iterator curMax;
             {
                 DUR_ACCUM("max_element");
                 curMax =
@@ -198,7 +198,8 @@ void InvertedIndex::Add(const string& document)
     }
 }
 
-void InvertedIndex::LookupAndSum(const string& word, map<size_t, size_t>& docid_count) const
+void InvertedIndex::LookupAndSum(const string& word,
+                                 unordered_map<size_t, size_t>& docid_count) const
 {
     DUR_ACCUM();
     auto it = index.find(word);
