@@ -7,6 +7,7 @@
 #include <sstream>
 #include <iostream>
 #include <future>
+#include <cassert>
 
 #define MULTI_THREAD_VERSION
 #undef MULTI_THREAD_VERSION
@@ -52,7 +53,7 @@ void SearchServer::AddQueriesStream(istream& query_input,
 SearchResult SearchServer::ProcessQuery(const string& query) const
 {
     const auto words = SplitIntoWords(query);
-    DocHits docid_count;
+    map<size_t, size_t> docid_count;
 
     {
         DUR_ACCUM("LookupAndSum");
@@ -68,7 +69,7 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
         DUR_ACCUM("Top5")
         for (size_t i = 0; docid_count.size() > 0 && i < MAX_OUTPUT; ++i)
         {
-            DocHits::iterator curMax;
+            map<size_t, size_t>::iterator curMax;
             {
                 DUR_ACCUM("max_element");
                 curMax =
@@ -185,50 +186,28 @@ void InvertedIndex::Add(const string& document)
 {
     docs.push_back(document);
     const size_t docid = docs.size() - 1;
-    map<string, vector<size_t>> wordHits;
+    map<string, size_t> wordHits;
 
     for (const auto& word : SplitIntoWords(document))
     {
-        wordHits[word].push_back(docid);
+        ++wordHits[word];
     }
     for (auto& [word, hits] : wordHits)
     {
-        index[word].push_back(DocHits(hits));
+        index[word].push_back(make_pair(docid, hits));
     }
 }
 
-void InvertedIndex::LookupAndSum(const string& word, DocHits& docid_count) const
+void InvertedIndex::LookupAndSum(const string& word, map<size_t, size_t>& docid_count) const
 {
     DUR_ACCUM();
     auto it = index.find(word);
 
     if (it != index.end())
-        docid_count += it->second;
-}
-
-DocHits::DocHits(const vector<size_t> &singleDocHits)
-{
-    sort(singleDocHits.begin(), singleDocHits.end());
-    for (size_t curDoc : singleDocHits)
     {
-        if (size() == 0 || back().first != curDoc)
+        for (auto& [docid, hits] : it->second)
         {
-            push_back({curDoc, 1});
-        }
-        else
-        {
-            ++back().second;
+            docid_count[docid] += hits;
         }
     }
-}
-
-DocHits &DocHits::operator+=(const DocHits& other)
-{
-    DUR_ACCUM();
-    for (auto& [doc, hits] : other)
-    {
-        binary_search
-        (*this)[doc] += hits;
-    }
-    return *this;
 }

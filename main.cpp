@@ -204,9 +204,9 @@ void TestBasicSearch() {
 void TestSpeed()
 {
     {
-        ifstream in("D:\\Learning\\QT\\Red\\RedFinal\\Test\\docs2.txt");
-        ifstream q("D:\\Learning\\QT\\Red\\RedFinal\\Test\\queries.txt");
-        ofstream outmulti("D:\\Learning\\QT\\Red\\RedFinal\\Test\\out.txt", ios_base::trunc);
+        ifstream in("D:\\Lekhan\\Learning\\CPP\\Red\\RedFinal\\Test\\docs2.txt");
+        ifstream q("D:\\Lekhan\\Learning\\CPP\\Red\\RedFinal\\Test\\queries.txt");
+        ofstream out("D:\\Lekhan\\Learning\\CPP\\Red\\RedFinal\\Test\\out.txt", ios_base::trunc);
 
 #ifdef MULTI_THREAD_VERSION
         LOG_DURATION("Total multi-thread");
@@ -221,7 +221,7 @@ void TestSpeed()
         }
         {
             LOG_DURATION("AddQueriesStream");
-            s.AddQueriesStream(q, outmulti);
+            s.AddQueriesStream(q, out);
         }
     }
 #if 0

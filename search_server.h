@@ -9,18 +9,13 @@
 
 using namespace std;
 
-class DocHits : public vector<pair<size_t, size_t>>
-{
-public:
-    DocHits(const vector<size_t>& singleDocHits);
-    DocHits& operator+=(const DocHits& other);
-};
+using DocHits = vector<pair<size_t, size_t>>;
 
 class InvertedIndex
 {
 public:
     void Add(const string& document);
-    void LookupAndSum(const string& word, DocHits& docid_count) const;
+    void LookupAndSum(const string& word, map<size_t, size_t>& docid_count) const;
 
     const string& GetDocument(size_t id) const
     {
