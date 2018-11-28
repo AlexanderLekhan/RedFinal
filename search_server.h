@@ -5,19 +5,20 @@
 #include <set>
 #include <vector>
 #include <map>
-#include <unordered_map>
+//#include <unordered_map>
 #include <string>
 
 using namespace std;
 
 using DocHits = vector<pair<size_t, size_t>>;
+using DocHitsMap = map<size_t, size_t>;
 
 class InvertedIndex
 {
 public:
     void Add(const string& document);
     void LookupAndSum(const string& word,
-                      unordered_map<size_t, size_t>& docid_count) const;
+                      DocHitsMap& docid_count) const;
 
     const string& GetDocument(size_t id) const
     {
