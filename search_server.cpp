@@ -53,9 +53,8 @@ void SearchServer::AddQueriesStream(istream& query_input,
 SearchResult SearchServer::ProcessQuery(const string& query) const
 {
     const auto words = SplitIntoWords(query);
-    using DocHitsArray = array<size_t, MAX_DOCS>;
-    DocHitsArray docid_count;
-    docid_count.fill(0);
+    using DocHitsArray = vector<size_t>;
+    DocHitsArray docid_count(MAX_DOCS, 0);
 
     {
         DUR_ACCUM("LookupAndSum");
