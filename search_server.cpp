@@ -53,14 +53,13 @@ void SearchServer::AddQueriesStream(istream& query_input,
 SearchResult SearchServer::ProcessQuery(const string& query) const
 {
     const auto words = SplitIntoWords(query);
-    using DocHitsArray = vector<size_t>;
-    DocHitsArray docid_count(index.DocsCount(), 0);
+    vector<size_t> docHits(index.DocsCount(), 0);
 
     {
         DUR_ACCUM("LookupAndSum");
         for (const auto& word : words)
         {
-            index.LookupAndSum(word, docid_count);
+            index.LookupAndSum(word, docHits);
         }
     }
 
@@ -68,11 +67,10 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
 
     {
         DUR_ACCUM("Top5");
-
-        for (size_t doc = 0; doc < docid_count.size(); ++doc)
+        for (auto curr = docHits.begin(); curr != docHits.end(); ++curr)
         {
-            if (docid_count[doc] > 0)
-                search_result.PushBack(make_pair(doc, docid_count[doc]));
+            if (*curr > 0)
+                search_result.PushBack(make_pair(curr - docHits.begin(), *curr));
         }
     }
     return search_result;
