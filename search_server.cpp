@@ -54,7 +54,7 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
 {
     const auto words = SplitIntoWords(query);
     using DocHitsArray = vector<size_t>;
-    DocHitsArray docid_count(MAX_DOCS, 0);
+    DocHitsArray docid_count(index.DocsCount(), 0);
 
     {
         DUR_ACCUM("LookupAndSum");

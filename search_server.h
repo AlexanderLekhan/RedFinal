@@ -24,6 +24,11 @@ public:
         return docs[id];
     }
 
+    size_t DocsCount() const
+    {
+        return docs.size();
+    }
+
 private:
     map<string, DocHits> index;
     vector<string> docs;
@@ -66,7 +71,6 @@ public:
                                      ostream& search_results_output) const;
 
     static const size_t MAX_OUTPUT = 5;
-    static const size_t MAX_DOCS = 50001;
 
 private:
     void PrintResult(const string& query,
