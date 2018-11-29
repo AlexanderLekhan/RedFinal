@@ -193,7 +193,7 @@ void InvertedIndex::LookupAndSum(const string& word,
     }
 }
 
-void SearchResult::PushBack(pair<size_t, size_t> docHits)
+void SearchResult::PushBack(pair<size_t, size_t>&& docHits)
 {
     DocHits::iterator curr = m_data.end();
 

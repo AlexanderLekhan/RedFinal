@@ -49,7 +49,7 @@ public:
     {
         return m_data.end();
     }
-    void PushBack(pair<size_t, size_t> docHits);
+    void PushBack(pair<size_t, size_t>&& docHits);
 
 private:
     DocHits m_data;
