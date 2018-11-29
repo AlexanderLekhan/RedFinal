@@ -11,10 +11,13 @@ using namespace std;
 
 using DocHits = vector<pair<size_t, size_t>>;
 
+const DocHits EMPTY_DOC_HITS = {};
+
 class InvertedIndex
 {
 public:
     void Add(const string& document);
+    const DocHits& Lookup(const string& word) const;
     template <typename DocHitsMap>
     void LookupAndSum(const string& word,
                       DocHitsMap& docid_count) const;
@@ -41,6 +44,7 @@ public:
                           ostream& search_results_output) const;
 
     SearchResult ProcessQuery(const string& query) const;
+    SearchResult ProcessQuery1(const string& query) const;
     void AddQueriesStreamSingleThread(istream& query_input,
                                       ostream& search_results_output) const;
     void AddQueriesStreamMultiThread(istream& query_input,

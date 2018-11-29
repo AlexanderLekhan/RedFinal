@@ -50,7 +50,7 @@ void SearchServer::AddQueriesStream(istream& query_input,
 #endif
 }
 
-SearchResult SearchServer::ProcessQuery(const string& query) const
+SearchResult SearchServer::ProcessQuery1(const string& query) const
 {
     const auto words = SplitIntoWords(query);
     using DocHitsArray = vector<size_t>;
@@ -67,9 +67,9 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
     SearchResult search_result;
 
     {
-        DUR_ACCUM("Top5")
+        DUR_ACCUM("Top5");
 
-        for (size_t i = 0; /*i < docid_count.size() 0 &&*/ i < MAX_OUTPUT; ++i)
+        for (size_t i = 0; i < MAX_OUTPUT; ++i)
         {
             DocHitsArray::iterator curMax = max_element(docid_count.begin(), docid_count.end());
 
@@ -81,6 +81,59 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
         }
     }
     return search_result;
+}
+
+SearchResult SearchServer::ProcessQuery(const string& query) const
+{
+    const auto words = SplitIntoWords(query);
+    DocHits docid_count(MAX_DOCS, make_pair(0, 0));
+
+    {
+        DUR_ACCUM("LookupAndSum");
+        for (const auto& word : words)
+        {
+            const DocHits& dh = index.Lookup(word);
+
+            for (auto& [doc, hits] : dh)
+            {
+                docid_count[doc].first = doc;
+                docid_count[doc].second += hits;
+            }
+        }
+    }
+
+    SearchResult search_results;
+    {
+        DUR_ACCUM("Fill_search_results");
+        search_results.reserve(MAX_DOCS);
+
+        for (auto& [doc, hits] : docid_count)
+        {
+            if (hits > 0)
+            {
+                search_results.push_back(make_pair(doc, hits));
+            }
+        }
+    }
+
+    {
+        DUR_ACCUM("Sort_search_results");
+        sort(search_results.begin(), search_results.end(),
+            [](pair<size_t, size_t> lhs, pair<size_t, size_t> rhs)
+            {
+                int64_t lhs_docid = lhs.first;
+                auto lhs_hit_count = lhs.second;
+                int64_t rhs_docid = rhs.first;
+                auto rhs_hit_count = rhs.second;
+                return make_pair(lhs_hit_count, -lhs_docid) > make_pair(rhs_hit_count, -rhs_docid);
+            });
+    }
+
+    if (search_results.size() > MAX_OUTPUT)
+    {
+        search_results.resize(MAX_OUTPUT);
+    }
+    return search_results;
 }
 
 void SearchServer::AddQueriesStreamSingleThread(istream& query_input,
@@ -182,6 +235,13 @@ void InvertedIndex::Add(const string& document)
     {
         index[word].push_back(make_pair(docid, hits));
     }
+}
+
+const DocHits& InvertedIndex::Lookup(const string& word) const
+{
+    DUR_ACCUM();
+    auto it = index.find(word);
+    return it != index.end()? it->second : EMPTY_DOC_HITS;
 }
 
 template <typename DocHitsMap>
