@@ -67,10 +67,10 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
 
     {
         DUR_ACCUM("Top5");
-        for (auto curr = docHits.begin(); curr != docHits.end(); ++curr)
+        for (size_t doc = 0; doc < docHits.size(); ++doc)
         {
-            if (*curr > 0)
-                search_result.PushBack(make_pair(curr - docHits.begin(), *curr));
+            if (docHits[doc] > 0)
+                search_result.PushBack(make_pair(doc, docHits[doc]));
         }
     }
     return search_result;
