@@ -5,18 +5,17 @@
 #include <set>
 #include <vector>
 #include <map>
-//#include <unordered_map>
 #include <string>
 
 using namespace std;
 
 using DocHits = vector<pair<size_t, size_t>>;
-using DocHitsMap = map<size_t, size_t>;
 
 class InvertedIndex
 {
 public:
     void Add(const string& document);
+    template <typename DocHitsMap>
     void LookupAndSum(const string& word,
                       DocHitsMap& docid_count) const;
 
@@ -48,6 +47,7 @@ public:
                                      ostream& search_results_output) const;
 
     const size_t MAX_OUTPUT = 5;
+    const size_t MAX_DOCS = 50001;
 
 private:
     void PrintResult(const string& query,

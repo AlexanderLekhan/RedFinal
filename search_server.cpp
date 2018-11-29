@@ -53,7 +53,7 @@ void SearchServer::AddQueriesStream(istream& query_input,
 SearchResult SearchServer::ProcessQuery(const string& query) const
 {
     const auto words = SplitIntoWords(query);
-    DocHitsMap docid_count;
+    vector<size_t> docid_count(MAX_DOCS, 0);
 
     {
         DUR_ACCUM("LookupAndSum");
@@ -67,31 +67,16 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
 
     {
         DUR_ACCUM("Top5")
-        for (size_t i = 0; docid_count.size() > 0 && i < MAX_OUTPUT; ++i)
+
+        for (size_t i = 0; /*i < docid_count.size() 0 &&*/ i < MAX_OUTPUT; ++i)
         {
-            DocHitsMap::iterator curMax;
-            {
-                DUR_ACCUM("max_element");
-                curMax =
-                max_element(docid_count.begin(), docid_count.end(),
-                            [](pair<size_t, size_t> lhs, pair<size_t, size_t> rhs)
-                            {
-                                int64_t lhs_docid = lhs.first;
-                                auto lhs_hit_count = lhs.second;
-                                int64_t rhs_docid = rhs.first;
-                                auto rhs_hit_count = rhs.second;
-                                return make_pair(lhs_hit_count, -lhs_docid)
-                                     < make_pair(rhs_hit_count, -rhs_docid);
-                            });
-            }
-            {
-                DUR_ACCUM("search_result.push_back");
-                search_result.push_back(move(*curMax));
-            }
-            {
-                DUR_ACCUM("docid_count.erase");
-                docid_count.erase(curMax);
-            }
+            vector<size_t>::iterator curMax = max_element(docid_count.begin(), docid_count.end());
+
+            if (*curMax == 0)
+                break;
+
+            search_result.push_back(make_pair(curMax - docid_count.begin(), *curMax));
+            *curMax = 0;
         }
     }
     return search_result;
@@ -198,6 +183,7 @@ void InvertedIndex::Add(const string& document)
     }
 }
 
+template <typename DocHitsMap>
 void InvertedIndex::LookupAndSum(const string& word,
                                  DocHitsMap& docid_count) const
 {
