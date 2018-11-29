@@ -46,8 +46,8 @@ public:
     void AddQueriesStreamMultiThread(istream& query_input,
                                      ostream& search_results_output) const;
 
-    const size_t MAX_OUTPUT = 5;
-    const size_t MAX_DOCS = 50001;
+    static const size_t MAX_OUTPUT = 5;
+    static const size_t MAX_DOCS = 50001;
 
 private:
     void PrintResult(const string& query,
