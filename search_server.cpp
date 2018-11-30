@@ -10,7 +10,7 @@
 #include <cassert>
 
 #define MULTI_THREAD_VERSION
-#undef MULTI_THREAD_VERSION
+//#undef MULTI_THREAD_VERSION
 
 using namespace std;
 
@@ -37,11 +37,12 @@ void SearchServer::UpdateDocumentBase(istream& document_input)
         }
     }
 
+    lock_guard g(m_indexMutex);
     index = move(new_index);
 }
 
 void SearchServer::AddQueriesStream(istream& query_input,
-                                    ostream& search_results_output) const
+                                    ostream& search_results_output)
 {
 #ifdef MULTI_THREAD_VERSION
     AddQueriesStreamMultiThread(query_input, search_results_output);
@@ -50,13 +51,16 @@ void SearchServer::AddQueriesStream(istream& query_input,
 #endif
 }
 
-SearchResult SearchServer::ProcessQuery(const string& query) const
+SearchResult SearchServer::ProcessQuery(const string& query)
 {
     const auto words = SplitIntoWords(query);
-    vector<size_t> docHits(index.DocsCount(), 0);
+    vector<size_t> docHits(0);
 
     {
         DUR_ACCUM("LookupAndSum");
+        lock_guard g(m_indexMutex);
+        docHits.resize(index.DocsCount(), 0);
+
         for (const auto& word : words)
         {
             index.LookupAndSum(word, docHits);
@@ -77,7 +81,7 @@ SearchResult SearchServer::ProcessQuery(const string& query) const
 }
 
 void SearchServer::AddQueriesStreamSingleThread(istream& query_input,
-                                                ostream& search_results_output) const
+                                                ostream& search_results_output)
 {
     DUR_ACCUM();
     for (string current_query; getline(query_input, current_query); )
@@ -114,7 +118,7 @@ struct ResultBatch
 };
 
 ResultBatch process_queries_batch(vector<string> queries,
-                                  const SearchServer& srv)
+                                  SearchServer& srv)
 {
     ResultBatch resultBatch(move(queries));
     for (const string& q : resultBatch.queries)
@@ -125,9 +129,9 @@ ResultBatch process_queries_batch(vector<string> queries,
 }
 
 void SearchServer::AddQueriesStreamMultiThread(istream& query_input,
-                                               ostream& search_results_output) const
+                                               ostream& search_results_output)
 {
-    const size_t max_batch_size = 1000;
+    const size_t max_batch_size = 3000;
     vector<string> queries;
     queries.reserve(max_batch_size);
     vector<future<ResultBatch>> futures;

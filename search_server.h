@@ -6,6 +6,7 @@
 #include <vector>
 #include <map>
 #include <string>
+#include <mutex>
 
 using namespace std;
 
@@ -62,13 +63,13 @@ public:
     explicit SearchServer(istream& document_input);
     void UpdateDocumentBase(istream& document_input);
     void AddQueriesStream(istream& query_input,
-                          ostream& search_results_output) const;
+                          ostream& search_results_output);
 
-    SearchResult ProcessQuery(const string& query) const;
+    SearchResult ProcessQuery(const string& query);
     void AddQueriesStreamSingleThread(istream& query_input,
-                                      ostream& search_results_output) const;
+                                      ostream& search_results_output);
     void AddQueriesStreamMultiThread(istream& query_input,
-                                     ostream& search_results_output) const;
+                                     ostream& search_results_output);
 
     static const size_t MAX_OUTPUT = 5;
 
@@ -77,4 +78,5 @@ private:
                      const SearchResult& result,
                      ostream& search_results_output) const;
     InvertedIndex index;
+    mutex m_indexMutex;
 };
