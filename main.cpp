@@ -204,16 +204,11 @@ void TestBasicSearch() {
 void TestSpeed()
 {
     {
-        ifstream in("D:\\Lekhan\\Learning\\CPP\\Red\\RedFinal\\Test\\docs2.txt");
-        ifstream q("D:\\Lekhan\\Learning\\CPP\\Red\\RedFinal\\Test\\queries.txt");
-        ofstream out("D:\\Lekhan\\Learning\\CPP\\Red\\RedFinal\\Test\\out.txt", ios_base::trunc);
+        ifstream in("D:\\Learning\\QT\\Red\\RedFinal\\Test\\docs2.txt");
+        ifstream q("D:\\Learning\\QT\\Red\\RedFinal\\Test\\queries.txt");
+        ofstream out("D:\\Learning\\QT\\Red\\RedFinal\\Test\\out.txt", ios_base::trunc);
 
-#ifdef MULTI_THREAD_VERSION
-        LOG_DURATION("Total multi-thread");
-#else
-        LOG_DURATION("Total single-thread");
-#endif
-
+        LOG_DURATION("Total");
         SearchServer s;
         {
             LOG_DURATION("UpdateDocumentBase");

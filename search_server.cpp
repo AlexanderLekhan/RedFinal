@@ -6,11 +6,7 @@
 #include <iterator>
 #include <sstream>
 #include <iostream>
-#include <future>
 #include <cassert>
-
-#define MULTI_THREAD_VERSION
-//#undef MULTI_THREAD_VERSION
 
 using namespace std;
 
@@ -20,12 +16,48 @@ vector<string> SplitIntoWords(const string& line)
     return {istream_iterator<string>(words_input), istream_iterator<string>()};
 }
 
+template <typename DocHitsMap>
+void InvertedIndex::LookupAndSum(const string& word,
+                                 DocHitsMap& docid_count) const
+{
+    auto it = m_index.find(word);
+
+    if (it != m_index.end())
+    {
+        for (auto& [docid, hits] : it->second)
+        {
+            docid_count[docid] += hits;
+        }
+    }
+}
+
+void InvertedIndex::Add(const string& document)
+{
+    docs.push_back(document);
+    const size_t docid = docs.size() - 1;
+    map<string, size_t> wordHits;
+
+    for (const auto& word : SplitIntoWords(document))
+    {
+        ++wordHits[word];
+    }
+    for (auto& [word, hits] : wordHits)
+    {
+        m_index[word].push_back(make_pair(docid, hits));
+    }
+}
+
 SearchServer::SearchServer(istream& document_input)
 {
     UpdateDocumentBase(document_input);
 }
 
 void SearchServer::UpdateDocumentBase(istream& document_input)
+{
+    UpdateDocumentBaseMultiThread(document_input);
+}
+
+void SearchServer::UpdateDocumentBaseSingleThread(istream& document_input)
 {
     InvertedIndex new_index;
 
@@ -37,18 +69,37 @@ void SearchServer::UpdateDocumentBase(istream& document_input)
         }
     }
 
-    lock_guard g(m_indexMutex);
-    index = move(new_index);
+    auto access = m_index.GetAccess();
+    access.ref_to_value = move(new_index);
 }
 
-void SearchServer::AddQueriesStream(istream& query_input,
-                                    ostream& search_results_output)
+void SearchServer::UpdateDocumentBaseMultiThread(istream& document_input)
 {
-#ifdef MULTI_THREAD_VERSION
-    AddQueriesStreamMultiThread(query_input, search_results_output);
-#else
-    AddQueriesStreamSingleThread(query_input, search_results_output);
-#endif
+    if (m_newIndex.valid())
+    {
+        auto access = m_index.GetAccess();
+        access.ref_to_value = move(m_newIndex.get());
+    }
+    m_newIndex = async([&document_input]()
+    {
+        InvertedIndex new_index;
+
+        for (string current_document; getline(document_input, current_document); )
+        {
+            if (!current_document.empty())
+            {
+                new_index.Add(move(current_document));
+            }
+        }
+
+        return new_index;
+    });
+
+    auto access = m_index.GetAccess();
+    if (access.ref_to_value.DocsCount() == 0)
+    {
+        access.ref_to_value = move(m_newIndex.get());
+    }
 }
 
 SearchResult SearchServer::ProcessQuery(const string& query)
@@ -57,20 +108,18 @@ SearchResult SearchServer::ProcessQuery(const string& query)
     vector<size_t> docHits(0);
 
     {
-        DUR_ACCUM("LookupAndSum");
-        lock_guard g(m_indexMutex);
-        docHits.resize(index.DocsCount(), 0);
+        auto access = m_index.GetAccess();
+        docHits.resize(access.ref_to_value.DocsCount(), 0);
 
         for (const auto& word : words)
         {
-            index.LookupAndSum(word, docHits);
+            access.ref_to_value.LookupAndSum(word, docHits);
         }
     }
 
     SearchResult search_result(MAX_OUTPUT);
 
     {
-        DUR_ACCUM("Top5");
         for (size_t doc = 0; doc < docHits.size(); ++doc)
         {
             if (docHits[doc] > 0)
@@ -78,6 +127,12 @@ SearchResult SearchServer::ProcessQuery(const string& query)
         }
     }
     return search_result;
+}
+
+void SearchServer::AddQueriesStream(istream& query_input,
+                                    ostream& search_results_output)
+{
+    AddQueriesStreamMultiThread(query_input, search_results_output);
 }
 
 void SearchServer::AddQueriesStreamSingleThread(istream& query_input,
@@ -88,22 +143,6 @@ void SearchServer::AddQueriesStreamSingleThread(istream& query_input,
     {
         PrintResult(current_query, ProcessQuery(current_query), search_results_output);
     }
-}
-
-void SearchServer::PrintResult(const string& query,
-                               const SearchResult& result,
-                               ostream &search_results_output) const
-{
-    DUR_ACCUM();
-    search_results_output << query << ':';
-
-    for (auto [docid, hitcount] : result)
-    {
-        search_results_output
-            << " {" << "docid: " << docid << ", "
-            << "hitcount: " << hitcount << '}';
-    }
-    search_results_output << endl;
 }
 
 struct ResultBatch
@@ -131,7 +170,7 @@ ResultBatch process_queries_batch(vector<string> queries,
 void SearchServer::AddQueriesStreamMultiThread(istream& query_input,
                                                ostream& search_results_output)
 {
-    const size_t max_batch_size = 3000;
+    const size_t max_batch_size = 2000;
     vector<string> queries;
     queries.reserve(max_batch_size);
     vector<future<ResultBatch>> futures;
@@ -165,36 +204,19 @@ void SearchServer::AddQueriesStreamMultiThread(istream& query_input,
     }
 }
 
-void InvertedIndex::Add(const string& document)
+void SearchServer::PrintResult(const string& query,
+                               const SearchResult& result,
+                               ostream &search_results_output) const
 {
-    docs.push_back(document);
-    const size_t docid = docs.size() - 1;
-    map<string, size_t> wordHits;
+    search_results_output << query << ':';
 
-    for (const auto& word : SplitIntoWords(document))
+    for (auto [docid, hitcount] : result)
     {
-        ++wordHits[word];
+        search_results_output
+            << " {" << "docid: " << docid << ", "
+            << "hitcount: " << hitcount << '}';
     }
-    for (auto& [word, hits] : wordHits)
-    {
-        index[word].push_back(make_pair(docid, hits));
-    }
-}
-
-template <typename DocHitsMap>
-void InvertedIndex::LookupAndSum(const string& word,
-                                 DocHitsMap& docid_count) const
-{
-    DUR_ACCUM();
-    auto it = index.find(word);
-
-    if (it != index.end())
-    {
-        for (auto& [docid, hits] : it->second)
-        {
-            docid_count[docid] += hits;
-        }
-    }
+    search_results_output << endl;
 }
 
 void SearchResult::PushBack(pair<size_t, size_t>&& docHits)

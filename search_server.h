@@ -7,6 +7,12 @@
 #include <map>
 #include <string>
 #include <mutex>
+#include <future>
+
+#include "synchronized.h"
+
+#define MULTI_THREAD_VERSION
+//#undef MULTI_THREAD_VERSION
 
 using namespace std;
 
@@ -31,7 +37,7 @@ public:
     }
 
 private:
-    map<string, DocHits> index;
+    map<string, DocHits> m_index;
     vector<string> docs;
 };
 
@@ -64,19 +70,21 @@ public:
     void UpdateDocumentBase(istream& document_input);
     void AddQueriesStream(istream& query_input,
                           ostream& search_results_output);
-
     SearchResult ProcessQuery(const string& query);
+
+private:
+    void UpdateDocumentBaseSingleThread(istream& document_input);
+    void UpdateDocumentBaseMultiThread(istream& document_input);
     void AddQueriesStreamSingleThread(istream& query_input,
                                       ostream& search_results_output);
     void AddQueriesStreamMultiThread(istream& query_input,
                                      ostream& search_results_output);
-
-    static const size_t MAX_OUTPUT = 5;
-
-private:
     void PrintResult(const string& query,
                      const SearchResult& result,
                      ostream& search_results_output) const;
-    InvertedIndex index;
-    mutex m_indexMutex;
+
+    static const size_t MAX_OUTPUT = 5;
+
+    Synchronized<InvertedIndex> m_index;
+    future<InvertedIndex> m_newIndex;
 };
