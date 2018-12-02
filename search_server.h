@@ -11,9 +11,6 @@
 
 #include "synchronized.h"
 
-#define MULTI_THREAD_VERSION
-//#undef MULTI_THREAD_VERSION
-
 using namespace std;
 
 using DocHits = vector<pair<size_t, size_t>>;
@@ -75,6 +72,7 @@ public:
 private:
     void UpdateDocumentBaseSingleThread(istream& document_input);
     void UpdateDocumentBaseMultiThread(istream& document_input);
+    void CheckNewIndex();
     void AddQueriesStreamSingleThread(istream& query_input,
                                       ostream& search_results_output);
     void AddQueriesStreamMultiThread(istream& query_input,
@@ -86,6 +84,6 @@ private:
     static const size_t MAX_OUTPUT = 5;
 
     Synchronized<InvertedIndex> m_index;
-    future<InvertedIndex> m_newIndex;
+    vector<future<InvertedIndex>> m_newIndex;
     mutex m_newIndexMutex;
 };
