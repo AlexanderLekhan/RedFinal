@@ -87,4 +87,5 @@ private:
 
     Synchronized<InvertedIndex> m_index;
     future<InvertedIndex> m_newIndex;
+    mutex m_newIndexMutex;
 };

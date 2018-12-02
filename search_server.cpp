@@ -75,11 +75,7 @@ void SearchServer::UpdateDocumentBaseSingleThread(istream& document_input)
 
 void SearchServer::UpdateDocumentBaseMultiThread(istream& document_input)
 {
-    if (m_newIndex.valid())
-    {
-        auto access = m_index.GetAccess();
-        access.ref_to_value = move(m_newIndex.get());
-    }
+    lock_guard g(m_newIndexMutex);
     m_newIndex = async([&document_input]()
     {
         InvertedIndex new_index;
@@ -94,16 +90,25 @@ void SearchServer::UpdateDocumentBaseMultiThread(istream& document_input)
 
         return new_index;
     });
-
-    auto access = m_index.GetAccess();
-    if (access.ref_to_value.DocsCount() == 0)
-    {
-        access.ref_to_value = move(m_newIndex.get());
-    }
 }
 
 SearchResult SearchServer::ProcessQuery(const string& query)
 {
+    {
+        lock_guard g(m_newIndexMutex);
+
+        if (m_newIndex.valid())
+        {
+            auto access = m_index.GetAccess();
+
+            if (access.ref_to_value.DocsCount() == 0
+                || m_newIndex.wait_for(chrono::seconds(0)) == future_status::ready)
+            {
+                access.ref_to_value = move(m_newIndex.get());
+            }
+        }
+    }
+
     const auto words = SplitIntoWords(query);
     vector<size_t> docHits(0);
 
