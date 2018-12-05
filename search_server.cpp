@@ -1,20 +1,14 @@
-#include "search_server.h"
-#include "iterator_range.h"
-#include "profile.h"
-
 #include <algorithm>
-#include <iterator>
 #include <sstream>
 #include <iostream>
 #include <cassert>
 
-using namespace std;
+#include "search_server.h"
+#include "iterator_range.h"
+#include "profile.h"
+#include "parse.h"
 
-vector<string> SplitIntoWords(const string& line)
-{
-    istringstream words_input(line);
-    return {istream_iterator<string>(words_input), istream_iterator<string>()};
-}
+using namespace std;
 
 InvertedIndex::InvertedIndex(istream& document_input)
 {
@@ -26,7 +20,7 @@ InvertedIndex::InvertedIndex(istream& document_input)
         m_docs.push_back(move(current_document));
         const size_t docid = m_docs.size() - 1;
 
-        for (const string& word : SplitIntoWords(m_docs.back()))
+        for (string_view word : SplitIntoWordsView(m_docs.back()))
         {
             DocHits& docHits = m_index[word];
 
@@ -43,7 +37,7 @@ InvertedIndex::InvertedIndex(istream& document_input)
 }
 
 template <typename DocHitsMap>
-void InvertedIndex::LookupAndSum(const string& word,
+void InvertedIndex::LookupAndSum(string_view word,
                                  DocHitsMap& docid_count) const
 {
     auto it = m_index.find(word);
@@ -96,7 +90,7 @@ void process_query_stream(istream& query_input,
         if (current_query.empty())
             continue;
 
-        const auto words = SplitIntoWords(current_query);
+        const auto words = SplitIntoWordsView(current_query);
         vector<size_t> docHits(0);
 
         {

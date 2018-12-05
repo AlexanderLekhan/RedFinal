@@ -20,3 +20,44 @@ vector<string_view> SplitBy(string_view s, char sep) {
   return result;
 }
 
+string_view ReadToken(string_view& sv)
+{
+    size_t pos1 = 0;
+
+    while (!sv.empty() && isspace(sv[pos1]))
+    {
+        ++pos1;
+    }
+    auto pos2 = sv.find(' ', pos1);
+    string_view result;
+
+    if (pos2 != string::npos)
+    {
+        result = sv.substr(pos1, pos2 - pos1);
+        sv.remove_prefix(pos2);
+    }
+    else
+    {
+        result = sv.substr(pos1, pos2);
+        sv.remove_prefix(sv.size());
+    }
+    return result;
+}
+
+vector<string> SplitIntoWords(const string& line)
+{
+    istringstream words_input(line);
+    return {istream_iterator<string>(words_input), istream_iterator<string>()};
+}
+
+vector<string_view> SplitIntoWordsView(string_view str)
+{
+    vector<string_view> result;
+
+    for (string_view word = ReadToken(str); !word.empty(); word = ReadToken(str))
+    {
+        result.push_back(word);
+    }
+
+    return result;
+}

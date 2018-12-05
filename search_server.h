@@ -2,8 +2,8 @@
 
 #include <istream>
 #include <ostream>
-#include <set>
 #include <vector>
+#include <deque>
 #include <map>
 #include <string>
 #include <mutex>
@@ -21,7 +21,7 @@ public:
     InvertedIndex() = default;
     explicit InvertedIndex(istream& document_input);
     template <typename DocHitsMap>
-    void LookupAndSum(const string& word,
+    void LookupAndSum(string_view word,
                       DocHitsMap& docid_count) const;
 
     const string& GetDocument(size_t id) const
@@ -35,8 +35,8 @@ public:
     }
 
 private:
-    map<string, DocHits> m_index;
-    vector<string> m_docs;
+    deque<string> m_docs;
+    map<string_view, DocHits> m_index;
 };
 
 class SearchResult
