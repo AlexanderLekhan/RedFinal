@@ -18,24 +18,25 @@ using DocHits = vector<pair<size_t, size_t>>;
 class InvertedIndex
 {
 public:
-    void Add(const string& document);
+    InvertedIndex() = default;
+    explicit InvertedIndex(istream& document_input);
     template <typename DocHitsMap>
     void LookupAndSum(const string& word,
                       DocHitsMap& docid_count) const;
 
     const string& GetDocument(size_t id) const
     {
-        return docs[id];
+        return m_docs[id];
     }
 
     size_t DocsCount() const
     {
-        return docs.size();
+        return m_docs.size();
     }
 
 private:
     map<string, DocHits> m_index;
-    vector<string> docs;
+    vector<string> m_docs;
 };
 
 class SearchResult
@@ -67,23 +68,9 @@ public:
     void UpdateDocumentBase(istream& document_input);
     void AddQueriesStream(istream& query_input,
                           ostream& search_results_output);
-    SearchResult ProcessQuery(const string& query);
+    void WaitForAllTasks();
 
 private:
-    void UpdateDocumentBaseSingleThread(istream& document_input);
-    void UpdateDocumentBaseMultiThread(istream& document_input);
-    void CheckNewIndex();
-    void AddQueriesStreamSingleThread(istream& query_input,
-                                      ostream& search_results_output);
-    void AddQueriesStreamMultiThread(istream& query_input,
-                                     ostream& search_results_output);
-    void PrintResult(const string& query,
-                     const SearchResult& result,
-                     ostream& search_results_output) const;
-
-    static const size_t MAX_OUTPUT = 5;
-
     Synchronized<InvertedIndex> m_index;
-    vector<future<InvertedIndex>> m_newIndex;
-    mutex m_newIndexMutex;
+    vector<future<void>> m_tasks;
 };

@@ -16,6 +16,32 @@ vector<string> SplitIntoWords(const string& line)
     return {istream_iterator<string>(words_input), istream_iterator<string>()};
 }
 
+InvertedIndex::InvertedIndex(istream& document_input)
+{
+    for (string current_document; getline(document_input, current_document); )
+    {
+        if (current_document.empty())
+            continue;
+
+        m_docs.push_back(move(current_document));
+        const size_t docid = m_docs.size() - 1;
+
+        for (const string& word : SplitIntoWords(m_docs.back()))
+        {
+            DocHits& docHits = m_index[word];
+
+            if (!docHits.empty() && docHits.back().first == docid)
+            {
+                ++docHits.back().second;
+            }
+            else
+            {
+                docHits.push_back(make_pair(docid, 1));
+            }
+        }
+    }
+}
+
 template <typename DocHitsMap>
 void InvertedIndex::LookupAndSum(const string& word,
                                  DocHitsMap& docid_count) const
@@ -31,201 +57,94 @@ void InvertedIndex::LookupAndSum(const string& word,
     }
 }
 
-void InvertedIndex::Add(const string& document)
-{
-    docs.push_back(document);
-    const size_t docid = docs.size() - 1;
-    map<string, size_t> wordHits;
-
-    for (const auto& word : SplitIntoWords(document))
-    {
-        ++wordHits[word];
-    }
-    for (auto& [word, hits] : wordHits)
-    {
-        m_index[word].push_back(make_pair(docid, hits));
-    }
-}
-
 SearchServer::SearchServer(istream& document_input)
 {
     UpdateDocumentBase(document_input);
 }
 
-void SearchServer::UpdateDocumentBase(istream& document_input)
+void update_document_base(istream& document_input, Synchronized<InvertedIndex>& index)
 {
-    UpdateDocumentBaseMultiThread(document_input);
-}
-
-void SearchServer::UpdateDocumentBaseSingleThread(istream& document_input)
-{
-    InvertedIndex new_index;
-
-    for (string current_document; getline(document_input, current_document); )
+    bool flag = true;
     {
-        if (!current_document.empty())
+        auto access = index.GetAccess();
+        if (access.ref_to_value.DocsCount() == 0)
         {
-            new_index.Add(move(current_document));
+            access.ref_to_value = move(InvertedIndex(document_input));
+            flag = false;
         }
     }
-
-    auto access = m_index.GetAccess();
-    access.ref_to_value = move(new_index);
+    if (flag)
+    {
+        InvertedIndex new_index(document_input);
+        index.GetAccess().ref_to_value = move(new_index);
+    }
 }
 
-void SearchServer::UpdateDocumentBaseMultiThread(istream& document_input)
+void SearchServer::UpdateDocumentBase(istream& document_input)
 {
-    lock_guard g(m_newIndexMutex);
-    m_newIndex.push_back(async([&document_input]()
-    {
-        InvertedIndex new_index;
+    m_tasks.push_back(async(update_document_base, ref(document_input), ref(m_index)));
+}
 
-        for (string current_document; getline(document_input, current_document); )
+void process_query_stream(istream& query_input,
+                          ostream& search_results_output,
+                          Synchronized<InvertedIndex>& index)
+{
+    static const size_t MAX_OUTPUT = 5;
+
+    for (string current_query; getline(query_input, current_query); )
+    {
+        if (current_query.empty())
+            continue;
+
+        const auto words = SplitIntoWords(current_query);
+        vector<size_t> docHits(0);
+
         {
-            if (!current_document.empty())
+            auto access = index.GetAccess();
+            docHits.resize(access.ref_to_value.DocsCount(), 0);
+
+            for (const auto& word : words)
             {
-                new_index.Add(move(current_document));
+                access.ref_to_value.LookupAndSum(word, docHits);
             }
         }
 
-        return new_index;
-    }));
-}
+        SearchResult search_result(MAX_OUTPUT);
 
-void SearchServer::CheckNewIndex()
-{
-    lock_guard g(m_newIndexMutex);
-
-    if (m_newIndex.size() > 0)
-    {
-        auto access = m_index.GetAccess();
-
-        if (access.ref_to_value.DocsCount() == 0)
-            //|| m_newIndex.wait_for(chrono::seconds(0)) == future_status::ready)
-        {
-            access.ref_to_value = move(m_newIndex[0].get());
-        }
-    }
-}
-
-SearchResult SearchServer::ProcessQuery(const string& query)
-{
-    //CheckNewIndex();
-
-    const auto words = SplitIntoWords(query);
-    vector<size_t> docHits(0);
-
-    {
-        auto access = m_index.GetAccess();
-        docHits.resize(access.ref_to_value.DocsCount(), 0);
-
-        for (const auto& word : words)
-        {
-            access.ref_to_value.LookupAndSum(word, docHits);
-        }
-    }
-
-    SearchResult search_result(MAX_OUTPUT);
-
-    {
         for (size_t doc = 0; doc < docHits.size(); ++doc)
         {
             if (docHits[doc] > 0)
                 search_result.PushBack(make_pair(doc, docHits[doc]));
         }
+
+        search_results_output << current_query << ':';
+
+        for (auto [docid, hitcount] : search_result)
+        {
+            search_results_output
+                << " {" << "docid: " << docid << ", "
+                << "hitcount: " << hitcount << '}';
+        }
+        search_results_output << endl;
     }
-    return search_result;
 }
 
 void SearchServer::AddQueriesStream(istream& query_input,
                                     ostream& search_results_output)
 {
-    CheckNewIndex();
-    AddQueriesStreamMultiThread(query_input, search_results_output);
+    m_tasks.push_back(async(process_query_stream,
+                            ref(query_input),
+                            ref(search_results_output),
+                            ref(m_index)));
 }
 
-void SearchServer::AddQueriesStreamSingleThread(istream& query_input,
-                                                ostream& search_results_output)
+void SearchServer::WaitForAllTasks()
 {
-    DUR_ACCUM();
-    for (string current_query; getline(query_input, current_query); )
+    for (auto& t : m_tasks)
     {
-        PrintResult(current_query, ProcessQuery(current_query), search_results_output);
+        if (t.valid())
+            t.get();
     }
-}
-
-struct ResultBatch
-{
-    ResultBatch(vector<string> queriesBatch) :
-        queries(queriesBatch)
-    {
-        results.reserve(queries.size());
-    }
-    vector<string> queries;
-    vector<SearchResult> results;
-};
-
-ResultBatch process_queries_batch(vector<string> queries,
-                                  SearchServer& srv)
-{
-    ResultBatch resultBatch(move(queries));
-    for (const string& q : resultBatch.queries)
-    {
-        resultBatch.results.push_back(srv.ProcessQuery(q));
-    }
-    return resultBatch;
-}
-
-void SearchServer::AddQueriesStreamMultiThread(istream& query_input,
-                                               ostream& search_results_output)
-{
-    const size_t max_batch_size = 2000;
-    vector<string> queries;
-    queries.reserve(max_batch_size);
-    vector<future<ResultBatch>> futures;
-    bool ok = true;
-
-    while (ok)
-    {
-        string current_query;
-        ok = getline(query_input, current_query).good();
-
-        if (!current_query.empty())
-        {
-            queries.push_back(move(current_query));
-        }
-
-        if (!(ok && queries.size() < max_batch_size))
-        {
-            futures.push_back(async(process_queries_batch, move(queries), ref(*this)));
-        }
-    }
-
-    for (future<ResultBatch>& f : futures)
-    {
-        const ResultBatch& resultBatch(f.get());
-        size_t i = 0;
-
-        for (const SearchResult& r : resultBatch.results)
-        {
-            PrintResult(resultBatch.queries[i++], r, search_results_output);
-        }
-    }
-}
-
-void SearchServer::PrintResult(const string& query,
-                               const SearchResult& result,
-                               ostream &search_results_output) const
-{
-    search_results_output << query << ':';
-
-    for (auto [docid, hitcount] : result)
-    {
-        search_results_output
-            << " {" << "docid: " << docid << ", "
-            << "hitcount: " << hitcount << '}';
-    }
-    search_results_output << endl;
 }
 
 void SearchResult::PushBack(pair<size_t, size_t>&& docHits)

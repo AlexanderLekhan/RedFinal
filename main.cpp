@@ -13,6 +13,7 @@
 #include <random>
 #include <thread>
 using namespace std;
+using namespace chrono_literals;
 
 void TestFunctionality(
   const vector<string>& docs,
@@ -24,9 +25,10 @@ void TestFunctionality(
 
   SearchServer srv;
   srv.UpdateDocumentBase(docs_input);
+  srv.WaitForAllTasks();
   ostringstream queries_output;
   srv.AddQueriesStream(queries_input, queries_output);
-
+  srv.WaitForAllTasks();
   const string result = queries_output.str();
   const auto lines = SplitBy(Strip(result), '\n');
   ASSERT_EQUAL(lines.size(), expected.size());
@@ -209,35 +211,17 @@ void TestSpeed()
         ofstream out("D:\\Learning\\QT\\Red\\RedFinal\\Test\\out.txt", ios_base::trunc);
 
         LOG_DURATION("Total");
-        SearchServer s;
+        SearchServer srv;
         {
             LOG_DURATION("UpdateDocumentBase");
-            s.UpdateDocumentBase(in);
+            srv.UpdateDocumentBase(in);
         }
+        srv.WaitForAllTasks();
         {
             LOG_DURATION("AddQueriesStream");
-            s.AddQueriesStream(q, out);
+            srv.AddQueriesStream(q, out);
         }
     }
-#if 0
-    {
-        ifstream in("D:\\Learning\\QT\\Red\\RedFinal\\Test\\docs.txt");
-        ifstream q("D:\\Learning\\QT\\Red\\RedFinal\\Test\\queries.txt");
-        ofstream outsingle("D:\\Learning\\QT\\Red\\RedFinal\\Test\\out_single.txt", ios_base::trunc);
-
-        LOG_DURATION("Total single-thread");
-
-        SearchServer s;
-        {
-            LOG_DURATION("UpdateDocumentBase");
-            s.UpdateDocumentBase(in);
-        }
-        {
-            LOG_DURATION("AddQueriesStreamSingleThread");
-            s.AddQueriesStreamSingleThread(q, outsingle);
-        }
-    }
-#endif
     DUR_PRINT_ALL;
 }
 
